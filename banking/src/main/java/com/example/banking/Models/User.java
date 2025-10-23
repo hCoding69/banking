@@ -26,11 +26,16 @@ public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    private String firstName;
+    private String lastName;
+    private LocalDate birthDate;
     private String email;
     private String password;
     private LocalDateTime lastLoginAt;
     private double failedLogin;
     private String mfaSecret;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     @Enumerated(EnumType.STRING)
     private UserStatus userStatus;
 

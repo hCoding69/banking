@@ -1,11 +1,14 @@
 package com.example.banking.Security.controllers;
 
+import com.example.banking.Repositories.UserRepository;
 import com.example.banking.Services.JwtService;
 import com.example.banking.Services.MFAService;
 import com.example.banking.Services.UserDetailsServiceImpl;
 import com.example.banking.Services.dto.AuthRequest;
 import com.example.banking.Services.dto.AuthResponse;
 import com.example.banking.Models.User;
+import com.example.banking.Services.dto.RegisterRequest;
+import com.example.banking.Services.dto.RegisterResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,6 +29,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtService jwtService;
+    private final UserRepository  userRepository;
 
 
     @PostMapping("/login")
@@ -57,5 +61,25 @@ public class AuthController {
         String refreshToken = jwtService.generateRefreshToken(user);
 
         return new AuthResponse(accessToken, refreshToken, "Login Successful");
+    }
+
+    public RegisterResponse register(@Valid @RequestBody RegisterRequest request) {
+        if(userRepository.existsByEmail(request.getEmail())){
+            throw new RuntimeException("Email already exists");
+        }
+
+        String secret = MFAService.generateSecret();
+
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setBirthDate(request.getBirthDate());
+        user.setMfaSecret(secret);
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setPassword(userDetailsService.encodePassword(request.getPassword()));
+
+        userDetailsService.saveUser(user);
+
+
     }
 }
