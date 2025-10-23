@@ -65,8 +65,10 @@ public class AuthService {
         return new AuthResponse(accessToken, refreshToken, "Login Successful");
     }
 
-    public User register(RegisterRequest request) {
-
+    public RegisterResponse register(RegisterRequest request) {
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new IllegalArgumentException("Passwords do not match");
+        }
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email already in use");
         }
@@ -94,7 +96,7 @@ public class AuthService {
         String otpAuthUrl = MFAService.generateOtpAuthURL(user.getEmail(), secret);
         userRepository.save(user);
 
-        return user;
+        return new RegisterResponse(secret, otpAuthUrl, "Registration successful. Please scan the QR code with Google Authenticator.");
     }
 
 }

@@ -71,7 +71,10 @@ public class User implements UserDetails {
     public boolean isAccountNonLocked() {
         return !this.userStatus.equals(UserStatus.SUSPENDED) && !this.userStatus.equals(UserStatus.BLOCKED)  ;
     }
-
+    @Override
+    public String getPassword() {
+        return this.password;
+    }
     @Override
     public boolean isCredentialsNonExpired() {
         return true;

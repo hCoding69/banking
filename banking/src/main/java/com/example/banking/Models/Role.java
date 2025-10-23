@@ -45,4 +45,10 @@ public class Role {
     )
     private Set<Permission> permissions = new HashSet<>();
 
+    public Set<Permission> getPermissions() {
+        return this.permissions;
+    }
+
+
+
 }
