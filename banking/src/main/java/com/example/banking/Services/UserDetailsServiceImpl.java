@@ -11,25 +11,21 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+
 public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "User Not Found : " + email
                 ));
     }
 
-    public UserDetails saveUser(User user) {
+    public User saveUser(User user) {
         return userRepository.save(user);
     }
-
-    public String encodePassword(String password) {
-        return passwordEncoder.encode(password);
-    }
 }
+
