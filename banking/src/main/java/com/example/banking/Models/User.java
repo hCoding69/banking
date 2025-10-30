@@ -84,4 +84,8 @@ public class User implements UserDetails {
     public boolean isEnabled() {
         return this.userStatus.equals(UserStatus.ACTIVE) || this.userStatus.equals(UserStatus.INACTIVE);
     }
+
+    @ManyToOne
+    @JoinColumn(name = "pack_id")
+    private Pack pack;
 }

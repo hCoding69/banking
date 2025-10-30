@@ -9,7 +9,12 @@ import com.example.banking.Services.dto.AuthRequest;
 import com.example.banking.Services.dto.AuthResponse;
 import com.example.banking.Services.dto.RegisterRequest;
 import com.example.banking.Services.dto.RegisterResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -32,7 +37,9 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
 
-    public AuthResponse login(AuthRequest request) {
+
+
+    public ResponseEntity<AuthResponse> login(AuthRequest request) {
 
         try {
             authenticationManager.authenticate(
@@ -47,9 +54,8 @@ public class AuthService {
         // Vérifier OTP (MFA)
         if (user.getMfaSecret() != null) {
             if (request.getOtp() == null) {
-                return new AuthResponse(null, null, "MFA_REQUIRED");
+                return ResponseEntity.ok(new AuthResponse(null, null, "MFA_REQUIRED"));
             }
-
             int otpCode = Integer.parseInt(request.getOtp());
             boolean otpValid = MFAService.verifyOtp(user.getMfaSecret(), otpCode);
 
@@ -62,8 +68,29 @@ public class AuthService {
         String accessToken = jwtService.generateToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
-        return new AuthResponse(accessToken, refreshToken, "Login Successful");
+        // Crée le cookie HttpOnly
+        ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", accessToken)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(24 * 60 * 60)  // 24h
+                .sameSite("Strict")
+                .build();
+
+        ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(7 * 24 * 60 * 60) // 7 jours
+                .sameSite("Strict")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
+                .body(new AuthResponse(null, null, "Login Successful"));
     }
+
 
     public RegisterResponse register(RegisterRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
@@ -98,5 +125,56 @@ public class AuthService {
 
         return new RegisterResponse(secret, otpAuthUrl, "Registration successful. Please scan the QR code with Google Authenticator.");
     }
+    // ==================== REFRESH TOKEN ====================
+    public ResponseEntity<AuthResponse> refreshToken(HttpServletRequest request) {
 
+        String refreshToken = jwtService.extractTokenFromCookie(request, "refreshToken");
+
+        String userEmail = jwtService.extractUsername(refreshToken);
+        User user = (User) userDetailsService.loadUserByUsername(userEmail);
+
+        if (refreshToken == null || !jwtService.isTokenValid(refreshToken, user)) {
+            return ResponseEntity.status(401).body(new AuthResponse(null, null, "Invalid refresh token"));
+        }
+
+
+        String newAccessToken = jwtService.generateToken(user);
+
+        ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", newAccessToken)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(24 * 60 * 60)
+                .sameSite("Strict")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
+                .body(new AuthResponse(null, null, "Access token refreshed"));
+    }
+
+    // ==================== LOGOUT ====================
+    public ResponseEntity<Void> logout(HttpServletResponse response) {
+        ResponseCookie clearAccessToken = ResponseCookie.from("accessToken", "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+
+        ResponseCookie clearRefreshToken = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, clearAccessToken.toString())
+                .header(HttpHeaders.SET_COOKIE, clearRefreshToken.toString())
+                .build();
+    }
 }
+

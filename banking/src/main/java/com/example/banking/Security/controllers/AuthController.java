@@ -12,6 +12,7 @@ import com.example.banking.Services.dto.RegisterRequest;
 import com.example.banking.Services.dto.RegisterResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,7 +34,7 @@ public class AuthController {
 
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody AuthRequest request){
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request){
         return authService.login(request);
     }
 

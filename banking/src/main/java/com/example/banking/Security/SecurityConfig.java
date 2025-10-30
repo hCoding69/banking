@@ -30,8 +30,9 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // On désactive CSRF pour les API REST
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // endpoints publics (login, register)
-                        .anyRequest().authenticated()               // tout le reste nécessite authentification
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/packs/**").permitAll()
+                        .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // JWT → pas de session
                 .authenticationProvider(authenticationProvider()) // Provider custom avec UserDetailsService
