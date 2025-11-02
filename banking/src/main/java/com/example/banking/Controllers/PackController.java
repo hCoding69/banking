@@ -38,9 +38,7 @@ public class PackController {
         pack.setSupportLevel(packRequest.getSupportLevel());
         pack.setMaxTransactionsPerDay(packRequest.getMaxTransactionsPerDay());
         pack.setMonthlyFee(packRequest.getMonthlyFee());
-
         return packRepository.save(pack);
-
     }
 
 
@@ -64,5 +62,4 @@ public class PackController {
             );
         }
     }
-
 }

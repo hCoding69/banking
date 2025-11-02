@@ -21,6 +21,7 @@ public class Pack {
     private int maxTransactionsPerDay;
     private boolean insurance;
 
+
     @OneToMany(mappedBy = "pack")
     private List<User> users;
 
