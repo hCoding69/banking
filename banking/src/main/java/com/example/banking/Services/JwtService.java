@@ -1,5 +1,6 @@
 package com.example.banking.Services;
 
+import com.example.banking.Services.dto.AuthResponse;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -8,6 +9,11 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +35,12 @@ public class JwtService {
 
     @Value("${application.security.jwt.refresh-token.expiration}")
     private long refreshExpiration;
+
+    private UserDetailsServiceImpl userDetailsService;
+
+    public JwtService(UserDetailsServiceImpl userDetailsService){
+        this.userDetailsService = userDetailsService;
+    }
 
 
     private Key getSignInKey() {
@@ -101,6 +113,48 @@ public class JwtService {
         return null;
     }
 
+    public ResponseEntity<AuthResponse> refreshToken(HttpServletRequest request) {
+
+        // 1️⃣ Récupérer le refresh token depuis le cookie
+        String refreshToken = extractTokenFromCookie(request, "refreshToken");
+
+        if (refreshToken == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse(null, null, "Refresh token missing"));
+        }
+
+        // 2️⃣ Extraire l'utilisateur
+        String userEmail;
+        try {
+            userEmail = extractUsername(refreshToken);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse(null, null, "Invalid refresh token"));
+        }
+
+        User user = (User) userDetailsService.loadUserByUsername(userEmail);
+
+        // 3️⃣ Vérifier validité du token
+        if (!isTokenValid(refreshToken, user)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse(null, null, "Invalid refresh token"));
+        }
+
+        // 4️⃣ Générer un nouvel access token
+        String newAccessToken = generateToken(user);
+
+        ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", newAccessToken)
+                .httpOnly(true)
+                .secure(false)         // true en production HTTPS
+                .path("/")
+                .maxAge(24 * 60 * 60) // 24h
+                .sameSite("Lax")       // Lax pour dev localhost
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
+                .body(new AuthResponse(null, null, "Access token refreshed"));
+    }
 
 
 }

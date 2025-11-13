@@ -1,9 +1,8 @@
 package com.example.banking.Models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,7 +18,8 @@ import java.util.stream.Collectors;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-@Data
+@Getter
+@Setter
 public class User implements UserDetails {
 
 
@@ -39,11 +39,12 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private UserStatus userStatus;
 
-    @ManyToMany(mappedBy = "users")
+    @ManyToMany(mappedBy = "users", fetch = FetchType.EAGER)
     public Set<Role> roles = new HashSet<>();
 
 
     @OneToMany(mappedBy = "user")
+
     public Set<AuditLog> auditLogs = new HashSet<>();
 
     @OneToMany(mappedBy = "user")

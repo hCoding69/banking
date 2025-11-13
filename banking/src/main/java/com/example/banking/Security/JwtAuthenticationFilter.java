@@ -30,22 +30,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @NotNull HttpServletResponse response,
                                     @NotNull FilterChain filterChain) throws ServletException, IOException {
 
+        String path = request.getServletPath();
+        if (path.startsWith("/api/auth/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         String jwt = null;
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
+                System.out.println("Cookie reçu: " + cookie.getName() + "=" + cookie.getValue());
                 if ("accessToken".equals(cookie.getName())) {
                     jwt = cookie.getValue();
-                    break;
                 }
             }
         }
+
+
 
         if (jwt == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 2️⃣ Extraire l'utilisateur
         String userEmail = jwtService.extractUsername(jwt);
 
         // 3️⃣ Authentifier si nécessaire
@@ -59,6 +65,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 null,
                                 userDetails.getAuthorities()
                         );
+                System.out.println("Authentification OK pour: " + userEmail);
+
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }

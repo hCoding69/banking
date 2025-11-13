@@ -5,22 +5,19 @@ import com.example.banking.Services.AuthService;
 import com.example.banking.Services.JwtService;
 import com.example.banking.Services.MFAService;
 import com.example.banking.Services.UserDetailsServiceImpl;
-import com.example.banking.Services.dto.AuthRequest;
-import com.example.banking.Services.dto.AuthResponse;
+import com.example.banking.Services.dto.*;
 import com.example.banking.Models.User;
-import com.example.banking.Services.dto.RegisterRequest;
-import com.example.banking.Services.dto.RegisterResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.parameters.P;
+import org.springframework.web.bind.annotation.*;
 
 
 @RestController
@@ -42,4 +39,18 @@ public class AuthController {
     public RegisterResponse register(@Valid @RequestBody RegisterRequest request) {
         return authService.register(request);
     }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<AuthResponse> refreshToken(HttpServletRequest request){
+        return authService.refreshToken(request);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletResponse response){
+        return authService.logout(response);
+    }
+
+
+
+
 }

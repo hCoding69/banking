@@ -1,6 +1,7 @@
 package com.example.banking.Repositories;
 
 import com.example.banking.Models.User;
+import com.example.banking.Services.dto.UserResponse;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

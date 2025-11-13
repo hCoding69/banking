@@ -3,12 +3,10 @@ package com.example.banking.Services;
 import com.example.banking.Models.Role;
 import com.example.banking.Models.User;
 import com.example.banking.Models.UserStatus;
+import com.example.banking.Repositories.PackRepository;
 import com.example.banking.Repositories.RoleRepository;
 import com.example.banking.Repositories.UserRepository;
-import com.example.banking.Services.dto.AuthRequest;
-import com.example.banking.Services.dto.AuthResponse;
-import com.example.banking.Services.dto.RegisterRequest;
-import com.example.banking.Services.dto.RegisterResponse;
+import com.example.banking.Services.dto.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +20,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -36,6 +33,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
+    private final PackRepository packRepository;
 
 
 
@@ -74,21 +72,25 @@ public class AuthService {
                 .secure(true)
                 .path("/")
                 .maxAge(24 * 60 * 60)  // 24h
-                .sameSite("Strict")
+                .sameSite("Lax")
                 .build();
 
         ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/")
                 .maxAge(7 * 24 * 60 * 60) // 7 jours
-                .sameSite("Strict")
+                .sameSite("Lax")
                 .build();
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
+        headers.add(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
-                .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
+                .headers(headers)
                 .body(new AuthResponse(null, null, "Login Successful"));
+
     }
 
 
@@ -114,6 +116,7 @@ public class AuthService {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setUserStatus(UserStatus.INACTIVE);
+        user.setPack(packRepository.getById(request.getPackId()));
         user.setMfaSecret(secret);
         user.setRoles(roles);
         user.setLastLoginAt(LocalDateTime.now());
@@ -142,10 +145,10 @@ public class AuthService {
 
         ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", newAccessToken)
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/")
                 .maxAge(24 * 60 * 60)
-                .sameSite("Strict")
+                .sameSite("Lax")
                 .build();
 
         return ResponseEntity.ok()
@@ -157,18 +160,18 @@ public class AuthService {
     public ResponseEntity<Void> logout(HttpServletResponse response) {
         ResponseCookie clearAccessToken = ResponseCookie.from("accessToken", "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/")
                 .maxAge(0)
-                .sameSite("Strict")
+                .sameSite("Lax")
                 .build();
 
         ResponseCookie clearRefreshToken = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/")
                 .maxAge(0)
-                .sameSite("Strict")
+                .sameSite("Lax")
                 .build();
 
         return ResponseEntity.ok()
@@ -176,5 +179,10 @@ public class AuthService {
                 .header(HttpHeaders.SET_COOKIE, clearRefreshToken.toString())
                 .build();
     }
+
+
+
+
+
 }
 

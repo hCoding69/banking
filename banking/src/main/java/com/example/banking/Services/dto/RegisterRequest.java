@@ -19,6 +19,9 @@ public class RegisterRequest {
     @NotBlank(message = "This Field Name is Required")
     private String lastName;
 
+    @NotNull(message = "The pack is Required")
+    private Long packId;
+
     @Email(message = "The email field is required")
     private String email;
 
@@ -33,5 +36,7 @@ public class RegisterRequest {
 
     @NotNull(message = "Birth date is required")
     private List<Long> roleIds;
+
+
 
 }
