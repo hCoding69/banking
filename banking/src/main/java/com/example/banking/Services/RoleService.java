@@ -38,8 +38,8 @@ public class RoleService {
             );
         }
 
-        user.getRoles().add(role);
-        userRepository.save(user);
+        role.getUsers().add(user);
+        roleRepository.save(role);
 
         Map<String, Object> response = Map.of(
                 "message", "Role '" + role.getName() + "' assigned to user '" + user.getEmail() + "'",

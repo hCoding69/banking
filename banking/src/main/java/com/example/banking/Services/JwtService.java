@@ -1,6 +1,8 @@
 package com.example.banking.Services;
 
+import com.example.banking.Models.Role;
 import com.example.banking.Services.dto.AuthResponse;
+import com.example.banking.Services.dto.CustomUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -13,8 +15,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
@@ -22,10 +22,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+
 @Service
 public class JwtService {
-
-    // Clé secrète — en production, stockée dans un Vault (AWS Secret Manager, Azure Key Vault, etc.)
 
     @Value("${application.security.jwt.secret-key}")
     private String secretKey;
@@ -36,40 +35,47 @@ public class JwtService {
     @Value("${application.security.jwt.refresh-token.expiration}")
     private long refreshExpiration;
 
-    private UserDetailsServiceImpl userDetailsService;
+    private final UserDetailsServiceImpl userDetailsService;
 
-    public JwtService(UserDetailsServiceImpl userDetailsService){
+    public JwtService(UserDetailsServiceImpl userDetailsService) {
         this.userDetailsService = userDetailsService;
     }
-
 
     private Key getSignInKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    // Construire un JWT
-    private String buildToken(Map<String, Object> extraClaims, UserDetails userDetails, long expiration) {
+    private Map<String, Object> getClaims(CustomUserDetails user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId());
+        claims.put("email", user.getEmail());
+        // ✅ Les rôles sous forme de String
+        claims.put("roles", user.getRoles()
+                .stream()
+                .map(Role::getName)
+                .toList());
+        return claims;
+    }
+
+
+
+    private String buildToken(Map<String, Object> extraClaims, CustomUserDetails user, long expiration) {
         return Jwts.builder()
                 .setClaims(extraClaims)
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setSubject(user.getUsername())
+                .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // Générer un JWT
-    public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
-        return buildToken(extraClaims, userDetails, jwtExpiration);
+    public String generateToken(CustomUserDetails user) {
+        return buildToken(getClaims(user), user, jwtExpiration);
     }
 
-    public String generateToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails, jwtExpiration);
-    }
-
-    public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails, refreshExpiration);
+    public String generateRefreshToken(CustomUserDetails user) {
+        return buildToken(getClaims(user), user, refreshExpiration);
     }
 
     private Claims extractAllClaims(String token) {
@@ -80,81 +86,55 @@ public class JwtService {
                 .getBody();
     }
 
-
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
-    }
-
     public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+        return extractAllClaims(token).getSubject();
     }
 
-    public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (userDetails.getUsername().equals(username) && !isTokenExpired(token));
+    public boolean isTokenValid(String token, CustomUserDetails user) {
+        return user.getUsername().equals(extractUsername(token)) && !isTokenExpired(token);
     }
 
     public Date getExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
+        return extractAllClaims(token).getExpiration();
     }
 
-    private Boolean isTokenExpired(String token) {
+    private boolean isTokenExpired(String token) {
         return getExpiration(token).before(new Date());
     }
 
     public String extractTokenFromCookie(HttpServletRequest request, String cookieName) {
         if (request.getCookies() == null) return null;
         for (Cookie cookie : request.getCookies()) {
-            if (cookie.getName().equals(cookieName)) {
-                return cookie.getValue();
-            }
+            if (cookie.getName().equals(cookieName)) return cookie.getValue();
         }
         return null;
     }
 
     public ResponseEntity<AuthResponse> refreshToken(HttpServletRequest request) {
-
-        // 1️⃣ Récupérer le refresh token depuis le cookie
         String refreshToken = extractTokenFromCookie(request, "refreshToken");
-
-        if (refreshToken == null) {
+        if (refreshToken == null)
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new AuthResponse(null, null, "Refresh token missing"));
-        }
 
-        // 2️⃣ Extraire l'utilisateur
-        String userEmail;
-        try {
-            userEmail = extractUsername(refreshToken);
-        } catch (Exception e) {
+        String email = extractUsername(refreshToken);
+        CustomUserDetails user = (CustomUserDetails) userDetailsService.loadUserByUsername(email);
+
+        if (!isTokenValid(refreshToken, user))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new AuthResponse(null, null, "Invalid refresh token"));
-        }
 
-        User user = (User) userDetailsService.loadUserByUsername(userEmail);
-
-        // 3️⃣ Vérifier validité du token
-        if (!isTokenValid(refreshToken, user)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AuthResponse(null, null, "Invalid refresh token"));
-        }
-
-        // 4️⃣ Générer un nouvel access token
         String newAccessToken = generateToken(user);
 
         ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", newAccessToken)
                 .httpOnly(true)
-                .secure(false)         // true en production HTTPS
+                .secure(false)
                 .path("/")
-                .maxAge(24 * 60 * 60) // 24h
-                .sameSite("Lax")       // Lax pour dev localhost
+                .maxAge(24 * 60 * 60)
+                .sameSite("Lax")
                 .build();
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
                 .body(new AuthResponse(null, null, "Access token refreshed"));
     }
-
-
 }
