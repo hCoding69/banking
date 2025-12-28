@@ -1,50 +1,51 @@
 package com.example.banking.Controllers;
 
-import com.example.banking.Repositories.UserRepository;
 import com.example.banking.Services.*;
 import com.example.banking.Services.dto.*;
-import com.example.banking.Models.User;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Set;
 
 
-
-    @RestController
+@RestController
     @RequestMapping("/api/users")
     public class UserController {
 
-        private RoleService roleService;
-        private UserService userService;
+        private final UserService userService;
 
         public UserController(RoleService roleService, UserService userService){
-            this.roleService = roleService;
             this.userService = userService;
         }
 
-        @PostMapping("/roles/assign-role")
-        public ResponseEntity<?> assignRole(@Valid @RequestBody AssignRoleRequest request){
-            return roleService.assignRole(request);
-        }
-
-        @PostMapping("/roles/create")
-
-        public ResponseEntity<?> createRole(@Valid @RequestBody CreateRoleRequest request){
-            return roleService.createRole(request);
-        }
 
         @GetMapping("/me")
         public ResponseEntity<UserResponse> me(Authentication authentication){
             return userService.getCurrentUser(authentication);
+        }
+
+        @GetMapping("/{id}/roles")
+        public ResponseEntity<?> getUserRolesWithPermissions(@RequestHeader("Authorization") String token,
+                                                             @PathVariable Long id){
+            return userService.getUserRolesWithPermissions(token, id);
+
+        }
+
+        @PostMapping("/{id}/roles")
+        public ResponseEntity<?> assignRolesToUser(@RequestHeader("Authorization") String token,
+                                                   @RequestBody Set<Long> roleReqIds,
+                                                   @PathVariable Long id){
+            return userService.assignRolesToUser(token,roleReqIds, id);
+
+        }
+
+        @DeleteMapping("/{id}/roles")
+        public ResponseEntity<?> RemoveRolesFromUser(@RequestHeader("Authorization") String token,
+                                                     @RequestBody Set<Long> roleReqIds,
+                                                     @PathVariable Long id){
+            return userService.RemoveRolesFromUser(token,roleReqIds, id);
+
         }
 
     }

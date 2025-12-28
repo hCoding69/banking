@@ -4,6 +4,8 @@ package com.example.banking.Models;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -19,6 +21,10 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
+    @Lob
+    private String description;
+    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime updatedAt = LocalDateTime.now();
 
     @ManyToMany
     @JoinTable(
@@ -31,7 +37,6 @@ public class Role {
             )
     )
     private Set<User> users = new HashSet<>();
-
 
 
     @ManyToMany(fetch = FetchType.EAGER)
@@ -47,7 +52,5 @@ public class Role {
     public Set<Permission> getPermissions() {
         return this.permissions;
     }
-
-
 
 }

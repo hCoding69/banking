@@ -137,4 +137,31 @@ public class JwtService {
                 .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
                 .body(new AuthResponse(null, null, "Access token refreshed"));
     }
+
+    public String generateInternalToken(String serviceName) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("internal", true);
+        claims.put("service", serviceName);
+
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(serviceName)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)) // 1 jour
+                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public boolean validateInternalToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .setSigningKey(getSignInKey())
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.get("internal", Boolean.class) != null && claims.get("internal", Boolean.class);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
 }
